@@ -93,6 +93,18 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+    int64_t sleep_time;
+
+    struct lock* waited_lock;
+
+    struct list donating_threads;
+
+    struct list_elem donating_threads_elem;
+
+    int ori_priority;
+
+
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -100,6 +112,7 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+
   };
 
 /* If false (default), use round-robin scheduler.
@@ -137,5 +150,12 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+bool donating_less_func (const struct list_elem *a,const struct list_elem *b,void *aux);
+void donate_priority(void);
+
+void remove_threads_from_donating_list (struct lock *released_lock);
+
+void if_newthread_need_yield(void);
 
 #endif /* threads/thread.h */
