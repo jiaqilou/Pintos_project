@@ -624,15 +624,10 @@ bool donating_less_func (const struct list_elem *a,const struct list_elem *b,voi
 }
 
 void donate_priority(void) {
-  struct thread* current_thread = thread_current();
-  struct lock* waiting_lock = current_thread -> waited_lock;
-
-  struct thread* lock_holder = waiting_lock -> holder;
+  struct thread* lock_holder = thread_current() -> waited_lock -> holder;
   if (lock_holder != NULL) {
-    if (lock_holder -> priority >= current_thread -> priority) {
-      return;
-    } else {
-      lock_holder -> priority = current_thread -> priority;    
+    if ((lock_holder -> priority) < thread_current() -> priority) {
+      lock_holder -> priority = thread_current() -> priority;    
     }
   }
 }
@@ -641,7 +636,7 @@ void remove_threads_from_donating_list (struct lock *released_lock) {
   struct thread* releasing_thread = thread_current();
   struct thread* found_thread;
   struct list_elem *i;
-  for (i = list_begin(&releasing_thread-> donating_threads); i != list_end (&releasing_thread-> donating_threads); i = list_next (i)) {
+  for (i = list_rbegin(&releasing_thread-> donating_threads); i != list_rend (&releasing_thread-> donating_threads); i = list_prev (i)) {
     found_thread = list_entry(i, struct thread, donating_threads_elem);
 
     if (found_thread -> waited_lock == released_lock)  {
@@ -652,7 +647,8 @@ void remove_threads_from_donating_list (struct lock *released_lock) {
 
 void if_newthread_need_yield(void) {
   if (!list_empty(&ready_list)) {
-    struct thread* t = list_entry(list_front(&ready_list), struct thread, elem);
+    struct list_elem* e = list_front(&ready_list);
+    struct thread* t = list_entry(e, struct thread, elem);
 
     if ((thread_current() -> priority) < t -> priority) {
       thread_yield();

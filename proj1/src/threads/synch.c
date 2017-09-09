@@ -246,7 +246,6 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
-  lock->holder = NULL;
   remove_threads_from_donating_list (lock);
 
   thread_current() -> priority = thread_current() -> ori_priority;
@@ -257,6 +256,8 @@ lock_release (struct lock *lock)
       thread_current()->priority = t->priority;
     }
   }
+
+  lock->holder = NULL;
 
   sema_up (&lock->semaphore);
 
