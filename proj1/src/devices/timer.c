@@ -95,9 +95,8 @@ timer_sleep (int64_t ticks)
   ASSERT (intr_get_level () == INTR_ON);
  /* while (timer_elapsed (start) < ticks) 
     thread_yield (); */
-  thread_current()-> sleep_time = ticks;
-
   enum intr_level old_level = intr_disable ();
+  thread_current()-> sleep_time = ticks;
   thread_block();
   intr_set_level (old_level);
 }
@@ -105,14 +104,15 @@ timer_sleep (int64_t ticks)
 void 
 ReduceSleepTime(struct thread* t, void* aux)
 {
+  enum intr_level old_level = intr_disable ();
   if (t -> sleep_time > 0) {
       t->sleep_time--;
       if(t->sleep_time== 0)
       {
-         thread_unblock(t);
-         
+          thread_unblock(t);       
       }
   }
+  intr_set_level (old_level);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
