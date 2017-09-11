@@ -80,7 +80,7 @@ sleeper (void *test_)
 {
   struct sleep_test *test = test_;
   int i;
- //msg ("iteration, thread :  %d ticks ",test->start);
+
   /* Make sure we're at the beginning of a timer tick. */
   timer_sleep (1);
 

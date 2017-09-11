@@ -624,10 +624,13 @@ bool donating_less_func (const struct list_elem *a,const struct list_elem *b,voi
 }
 
 void donate_priority(void) {
-  struct thread* lock_holder = thread_current() -> waited_lock -> holder;
-  if (lock_holder != NULL) {
-    if ((lock_holder -> priority) < thread_current() -> priority) {
-      lock_holder -> priority = thread_current() -> priority;    
+  if (thread_current() -> waited_lock != NULL) {
+    struct thread* lock_holder = thread_current() -> waited_lock -> holder;
+
+    if (lock_holder != NULL) {
+      if ((lock_holder -> priority) < thread_current() -> priority) {
+        lock_holder -> priority = thread_current() -> priority;    
+      }
     }
   }
 }
