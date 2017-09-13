@@ -152,6 +152,8 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 bool donating_less_func (const struct list_elem *a,const struct list_elem *b,void *aux);
+
+//bool donating_less_func_for_cond (const struct list_elem *a,const struct list_elem *b,void *aux);
 void donate_priority(void);
 
 void remove_threads_from_donating_list (struct lock *released_lock);

@@ -114,11 +114,15 @@ sema_up (struct semaphore *sema)
   ASSERT (sema != NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
+  if (!list_empty (&sema->waiters))  {
+    list_sort (&sema->waiters,&donating_less_func, 0);
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
+  }
   sema->value++;
   thread_current() -> waited_lock = NULL;
+
+  if_newthread_need_yield();
   intr_set_level (old_level);
 }
 
@@ -317,7 +321,7 @@ cond_init (struct condition *cond)
 void
 cond_wait (struct condition *cond, struct lock *lock) 
 {
-  struct semaphore_elem waiter;
+    struct semaphore_elem waiter;
 
   ASSERT (cond != NULL);
   ASSERT (lock != NULL);
@@ -326,6 +330,7 @@ cond_wait (struct condition *cond, struct lock *lock)
   
   sema_init (&waiter.semaphore, 0);
   list_push_back (&cond->waiters, &waiter.elem);
+  //list_push_back (&cond->waiters, &thread_current()->elem);
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);
@@ -346,9 +351,16 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
-  if (!list_empty (&cond->waiters)) 
-    sema_up (&list_entry (list_pop_front (&cond->waiters),
-                          struct semaphore_elem, elem)->semaphore);
+  enum intr_level old_level;
+  old_level = intr_disable ();
+
+  if (!list_empty (&cond->waiters)) {
+    list_sort (&cond->waiters,&donating_less_func_for_cond, 0);
+    sema_up (&list_entry (list_pop_front (&cond->waiters),struct semaphore_elem, elem)->semaphore);
+    // sema_up (&list_entry (list_pop_front (&cond->waiters),struct thread, elem)->semaphore);
+  }
+
+  intr_set_level (old_level);
 }
 
 /* Wakes up all threads, if any, waiting on COND (protected by
@@ -365,4 +377,21 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
+}
+
+bool donating_less_func_for_cond (const struct list_elem *a,const struct list_elem *b,void *aux) {
+  struct  semaphore_elem* a_sema_elem = list_entry(a, struct semaphore_elem, elem);
+  struct  semaphore_elem* b_sema_elem = list_entry(b, struct semaphore_elem, elem);
+
+  struct semaphore a_sema = a_sema_elem->semaphore;
+  struct semaphore b_sema = b_sema_elem->semaphore;
+
+  struct thread *a_thread = list_entry(list_front(&a_sema.waiters), struct thread, elem);
+  struct thread *b_thread = list_entry(list_front(&b_sema.waiters), struct thread, elem);
+
+  if (a_thread -> priority > b_thread -> priority) {
+    return true;
+  }else {
+    return false;
+  }
 }

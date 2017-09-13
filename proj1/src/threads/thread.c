@@ -168,6 +168,9 @@ tid_t
 thread_create (const char *name, int priority,
                thread_func *function, void *aux) 
 {
+  
+  enum intr_level old_level;
+
   struct thread *t;
   struct kernel_thread_frame *kf;
   struct switch_entry_frame *ef;
@@ -180,7 +183,7 @@ thread_create (const char *name, int priority,
   t = palloc_get_page (PAL_ZERO);
   if (t == NULL)
     return TID_ERROR;
-
+  old_level = intr_disable();
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
@@ -200,9 +203,15 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  intr_set_level(old_level);
   /* Add to run queue. */
   thread_unblock (t);
 
+
+  old_level = intr_disable();
+
+  if_newthread_need_yield();
+  intr_set_level(old_level);
   return tid;
 }
 
@@ -623,6 +632,20 @@ bool donating_less_func (const struct list_elem *a,const struct list_elem *b,voi
   }
 }
 
+/*bool donating_less_func_for_cond (const struct list_elem *a,const struct list_elem *b,void *aux) {
+  struct  semaphore* a_sema = list_entry(a, struct semaphore, struct semaphore_elem.elem);
+  struct  semaphore* b_sema = list_entry(b, struct semaphore, struct semaphore_elem.elem);
+
+  struct thread *a_thread = list_entry(list_front(&a_sema->waiters), struct thread, elem);
+  struct thread *b_thread = list_entry(list_front(&b_sema->waiters), struct thread, elem);
+
+  if (a_thread -> priority > b_thread -> priority) {
+    return true;
+  }else {
+    return false;
+  }
+}*/
+
 void donate_priority(void) {
   if (thread_current() -> waited_lock != NULL) {
     struct thread* lock_holder = thread_current() -> waited_lock -> holder;
@@ -631,7 +654,25 @@ void donate_priority(void) {
       if ((lock_holder -> priority) < thread_current() -> priority) {
         lock_holder -> priority = thread_current() -> priority;    
       }
+
+      
+      if (lock_holder -> waited_lock != NULL) {
+        struct thread* nested_lock_holder = lock_holder->waited_lock->holder;
+        nested_lock_holder -> priority = thread_current() -> priority;
+        while (nested_lock_holder -> waited_lock != NULL) {
+          nested_lock_holder = nested_lock_holder -> waited_lock -> holder;
+          nested_lock_holder -> priority = thread_current() -> priority;
+        }
+        
+      }
+      /*if (lock_holder -> waited_lock != NULL)  {
+        struct thread* nested_lock_holder = thread_current() -> waited_lock -> holder->waited_lock->holder;
+        if (nested_lock_holder != NULL) {
+          nested_lock_holder -> priority = thread_current() -> priority;
+        }
+      }*/
     }
+
   }
 }
 
